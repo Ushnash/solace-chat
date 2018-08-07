@@ -47,14 +47,42 @@ sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/TabContainerItem',
 		//
 		// }
 		addNewChatTab : function() {
-			var tabContainer = this.byId("chatTabContainer");
-
-			var tabContent = sap.ui.xmlfragment("solchat.view.ChatWindow");
-
-			tabContent.setName("myTab");
-
-			// show the tab
+			var channelDialog = this.byId("enterAddressDialog");		
+			channelDialog.open();
+		},
+	   
+		/*
+		 * If the user pressed Cancel, close the dialog that asks for Address input. 
+		 */
+		onAddressDialogCancel: function(event){
+			
+			//get a reference to the parent dialog of the 'cancel' button & close it
+			var dialog = event.getSource().getEventingParent();
+			dialog.close();
+		},
+	   
+		/*
+		 * Use this function to setup our chat tab once the user confirms their 
+		 * input.
+		 */
+		onAddressDialogAccept: function(event){
+			
+			//get the user's input
+			var nameInput = this.byId("channelNameInput").getValue();
+			var addressInput = this.byId("channelAddressInput").getValue();
+			
+			//get a reference to our Tab template
+			//use the user's input to name the tab object & provide text for the tab
+			var tabContent = sap.ui.xmlfragment(nameInput,"solchat.view.ChatWindow");
+			tabContent.setName(nameInput);
+			
+			//get a reference to our main application container and add in the new tab
+			var tabContainer =this.byId("chatTabContainer");
 			tabContainer.addItem(tabContent);
+			
+			//all done! close the dialog
+			var dialog = event.getSource().getEventingParent();
+			dialog.close();
 		}
 	});
 });

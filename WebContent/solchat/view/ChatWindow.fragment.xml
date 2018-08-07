@@ -11,7 +11,6 @@
 			enabled="true"
 			maxLength="255"
 			placeholder="Post something here"
-			value=""
 			icon=""
 			showIcon="true"
 			buttonTooltip="Submit"
