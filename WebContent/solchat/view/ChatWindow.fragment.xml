@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<TabContainerItem
+	xmlns="sap.m"
+	modified="false"
+	itemPropertyChanged="">
+
+	<content>
+		<List showSeparators="Inner" />
+		<FeedInput
+			enabled="true"
+			maxLength="255"
+			placeholder="Post something here"
+			value=""
+			icon=""
+			showIcon="true"
+			buttonTooltip="Submit"
+			post="" />
+	</content>
+</TabContainerItem>

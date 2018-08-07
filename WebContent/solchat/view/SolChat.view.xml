@@ -1,0 +1,17 @@
+<core:View
+	xmlns:core="sap.ui.core"
+	xmlns:mvc="sap.ui.core.mvc"
+	xmlns="sap.m"
+	controllerName="solchat.controller.SolChat"
+	xmlns:html="http://www.w3.org/1999/xhtml">
+
+	<Shell id="appShell">
+		<TabContainer
+			id="chatTabContainer"
+			visible="true"
+			showAddNewButton="true"
+			itemClose=""
+			itemSelect=""
+			addNewButtonPress="addNewChatTab" />
+	</Shell>
+</core:View>
