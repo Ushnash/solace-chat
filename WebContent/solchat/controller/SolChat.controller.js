@@ -73,7 +73,7 @@ sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/TabContainerItem',
 			
 			//get a reference to our Tab template
 			//use the user's input to name the tab object & provide text for the tab
-			var tabContent = sap.ui.xmlfragment(nameInput,"solchat.view.ChatWindow");
+			var tabContent = sap.ui.xmlfragment(nameInput,"solchat.view.chatwindow");
 			tabContent.setName(nameInput);
 			
 			//get a reference to our main application container and add in the new tab
