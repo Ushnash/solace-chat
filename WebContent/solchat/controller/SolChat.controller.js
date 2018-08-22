@@ -3,6 +3,7 @@ sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/Button',
 		'sap/m/MessageToast', 'sap/ui/core/format/DateFormat' ], function(
 		Controller, Button, FeedInput, JSONModel, Text, MessageToast,
 		DateFormat) {
+
 	"use strict";
 
 	return Controller.extend("solchat.controller.SolChat", {
