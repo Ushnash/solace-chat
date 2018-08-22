@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<TabContainerItem
-	xmlns="sap.m"
-	modified="false"
-	itemPropertyChanged="">
-
-	<content>
-		<List showSeparators="Inner" />
-		<FeedInput
-			enabled="true"
-			maxLength="255"
-			placeholder="Post something here"
-			icon=""
-			showIcon="true"
-			buttonTooltip="Submit"
-			post="" />
-	</content>
-</TabContainerItem>
+<core:FragmentDefinition
+	xmlns:core="sap.ui.core"
+	xmlns="sap.m">
+	<TabContainerItem
+		modified="false"
+		itemPropertyChanged="">
+		<content>
+			<List
+				id="feedList"
+				showSeparators="Inner" />
+			<FeedInput
+				id="feedInput"
+				enabled="true"
+				maxLength="255"
+				placeholder="Post something here"
+				showIcon="false"
+				buttonTooltip="Submit"
+				post="onPost" />
+		</content>
+	</TabContainerItem>
+</core:FragmentDefinition>

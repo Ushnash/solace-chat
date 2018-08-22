@@ -1,9 +1,11 @@
-sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/TabContainerItem',
-		'sap/m/Button', 'sap/m/FeedInput' ], function(Controller,
-		TabContainerItem, Button, FeedInput) {
+sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/Button',
+		'sap/m/FeedInput', 'sap/ui/model/json/JSONModel', 'sap/m/Text',
+		'sap/m/MessageToast', 'sap/ui/core/format/DateFormat' ], function(
+		Controller, Button, FeedInput, JSONModel, Text, MessageToast,
+		DateFormat) {
 	"use strict";
 
-	return Controller.extend("solchat.SolChat", {
+	return Controller.extend("solchat.controller.SolChat", {
 
 		/**
 		 * Called when a controller is instantiated and its View controls (if
@@ -13,9 +15,9 @@ sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/TabContainerItem',
 		 * 
 		 * @memberOf solchat.SolChat
 		 */
-		// onInit: function() {
-		//
-		// },
+		onInit : function() {
+
+		},
 		/**
 		 * Similar to onAfterRendering, but this hook is invoked before the
 		 * controller's View is re-rendered (NOT before the first rendering!
@@ -46,43 +48,116 @@ sap.ui.define([ 'sap/ui/core/mvc/Controller', 'sap/m/TabContainerItem',
 		// onExit: function() {
 		//
 		// }
-		addNewChatTab : function() {
-			var channelDialog = this.byId("enterAddressDialog");		
-			channelDialog.open();
-		},
-	   
-		/*
-		 * If the user pressed Cancel, close the dialog that asks for Address input. 
+		/**
+		 * Called when the user decides to connect to a topic. This initializes
+		 * the chat window, clearing any previous entries.
 		 */
-		onAddressDialogCancel: function(event){
-			
-			//get a reference to the parent dialog of the 'cancel' button & close it
-			var dialog = event.getSource().getEventingParent();
-			dialog.close();
+		onConnectPress : function(oEvent) {
+
+			// define an empty data model for
+			// our chat window.
+			// updates to this model get
+			// reflected on screen as new
+			// messages.
+			var oChatModel = new JSONModel({
+				"EntryCollection" : []
+			});
+
+			// assign this model to our chat
+			// feed
+			this.byId("feedList").setModel(oChatModel);
+
+			// get a reference to the
+			// topic/queue we want to connect to
+			var sChannel = this.byId("channelInput").getValue();
+
+			// the user didn't tell us what to connect to!
+			if ($.trim(sChannel) == "") {
+				var oErrorTopicDialog = this.byId("errorTopicDialog");
+				oErrorTopicDialog.open();
+			} else {
+
+				// TODO: do your connection logic here
+				var bConnected = false;
+				// bConnected = connect(sChannel);
+
+				if (bConnected) {
+					MessageToast.show("Connected to " + sChannel + "!");
+					this.setChatTitle(sChannel);
+				}
+
+				// show & enable the chat input
+				this.byId("feedInput").setVisible(true);
+			}
 		},
-	   
-		/*
-		 * Use this function to setup our chat tab once the user confirms their 
-		 * input.
+
+		/**
+		 * Updates the chat window with the new post and sends it off to the
+		 * message broker.
 		 */
-		onAddressDialogAccept: function(event){
-			
-			//get the user's input
-			var nameInput = this.byId("channelNameInput").getValue();
-			var addressInput = this.byId("channelAddressInput").getValue();
-			
-			//get a reference to our Tab template
-			//use the user's input to name the tab object & provide text for the tab
-			var tabContent = sap.ui.xmlfragment(nameInput,"solchat.view.chatwindow");
-			tabContent.setName(nameInput);
-			
-			//get a reference to our main application container and add in the new tab
-			var tabContainer =this.byId("chatTabContainer");
-			tabContainer.addItem(tabContent);
-			
-			//all done! close the dialog
-			var dialog = event.getSource().getEventingParent();
-			dialog.close();
+		onFeedInputPost : function(oControlEvent) {
+
+			// Get the input text posted by the
+			// user
+			var sValue = oControlEvent.getParameter("value");
+
+			// TODO: Send the input to the message broker
+			// Explode if there is an error
+			// broker.send(sValue);
+
+			// update the chat window
+			this.setChatMessage(sValue);
+		},
+
+		/**
+		 * Updates the chat window with a given text entry.
+		 */
+		setChatMessage : function(sChatText) {
+
+			// Get the current timestamp in a human-readable format
+			var oFormat = DateFormat.getDateTimeInstance({
+				style : "short"
+			});
+			var oDate = new Date();
+			var sDate = oFormat.format(oDate);
+
+			// Convert the message to a JSON
+			// object for our chat model
+			var oEntry = {
+				Text : sChatText,
+				Timestamp : sDate
+			};
+
+			// get the data model of the Chat
+			// list control
+			var oChatModel = this.byId("feedList").getModel();
+
+			// Put the new message on top of the
+			// message stack
+			var aEntries = oChatModel.getData().EntryCollection;
+			aEntries.unshift(oEntry);
+
+			// reset the Chat window's model to
+			// our updated message stack
+			oChatModel.setData({
+				EntryCollection : aEntries
+			});
+		},
+
+		/**
+		 * Sets the title for the chat window
+		 */
+		setChatTitle : function(sTitle) {
+			this.byId("chatPage").setTitle(sTitle);
+		},
+
+		/**
+		 * Simple function that closes a dialog after the users accepts it (i.e.
+		 * presses the OK button)
+		 */
+		onDialogAccept : function(oEvent) {
+			var oParentDialog = oEvent.getSource().getParent();
+			oParentDialog.close();
 		}
 	});
 });

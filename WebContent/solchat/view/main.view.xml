@@ -1,98 +1,76 @@
-<core:View
-	xmlns:core="sap.ui.core"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns="sap.m"
-	controllerName="solchat.controller.SolChat"
-	xmlns:html="http://www.w3.org/1999/xhtml">
+<mvc:View
+ xmlns:core="sap.ui.core"
+ xmlns:mvc="sap.ui.core.mvc"
+ xmlns="sap.m"
+ controllerName="solchat.controller.SolChat"
+ xmlns:html="http://www.w3.org/1999/xhtml">
 
-	<Shell id="appShell">
-		<TabContainer
-			id="chatTabContainer"
-			visible="true"
-			showAddNewButton="true"
-			itemClose=""
-			itemSelect=""
-			addNewButtonPress="addNewChatTab">
-			<dependents>
-				<Dialog
-					id="enterAddressDialog"
-					title="Enter Topic/Queue Details"
-					showHeader="true"
-					contentWidth="500px"
-					contentHeight="150px"
-					horizontalScrolling="true"
-					verticalScrolling="true"
-					resizable="true">
-					<tooltip></tooltip> <!-- sap.ui.core.TooltipBase -->
-					<content>
-						<List
-							id="inputList"
-							showSeparators="None">
-							<InputListItem
-								id="channelNameInputListItem"
-								type="Inactive"
-								visible="true"
-								highlight="None"
-								label="Name"
-								width="50px"
-								labelTextDirection="Inherit">
-								<content>
-									<Input
-										id="channelNameInput"
-										placeholder="name"
-										type="Text"
-										width="350px" />
-								</content>
-							</InputListItem>
-							<InputListItem
-								id="channelAddresssInputListItem"
-								type="Inactive"
-								visible="true"
-								highlight="None"
-								label="Address"
-								width="50px"
-								labelTextDirection="Inherit">
-								<content>
-									<Input
-										id="channelAddressInput"
-										placeholder="address"
-										type="Text"
-										width="350px" />
-								</content>
-							</InputListItem>
-						</List>
-					</content>
-					<buttons>
-						<Button
-							id="acceptButton"
-							visible="true"
-							text="Accept"
-							type="Accept"
-							enabled="true"
-							icon="sap-icon://accept"
-							iconFirst="true"
-							activeIcon=""
-							iconDensityAware="true"
-							textDirection="Inherit"
-							press="onAddressDialogAccept">
-						</Button>
-						<Button
-							id="cancelButton"
-							visible="true"
-							text="cancel"
-							type="Reject"
-							enabled="true"
-							icon="sap-icon://decline"
-							iconFirst="true"
-							activeIcon=""
-							iconDensityAware="true"
-							textDirection="Inherit"
-							press="onAddressDialogCancel">
-						</Button>
-					</buttons>
-				</Dialog>
+ <Shell>
 
-			</dependents>
-		</TabContainer>
-	</Shell>
-</core:View>
+  <App>
+   <Page id="chatPage">
+
+    <headerContent>
+     <core:Icon src="sap-icon://cloud" />
+     <Label text="Solace PubSub+" />
+    </headerContent>
+    <content>
+     <FeedInput
+      id="feedInput"
+      enabled="true"
+      maxLength="255"
+      placeholder="Enter your message here"
+      showIcon="false"
+      visible="false"
+      buttonTooltip="Submit"
+      post="onFeedInputPost" />
+
+     <List
+      id="feedList"
+      showSeparators="Inner"
+      items="{/EntryCollection}"
+      showNoData="false"
+      inset="true">
+      <FeedListItem
+       text="{Text}"
+       timestamp="{Timestamp}"
+       showIcon="false" />
+     </List>
+    </content>
+
+    <footer>
+     <Toolbar>
+      <ToolbarSpacer />
+      <Input id="channelInput" />
+      <Button
+       text="Connect"
+       icon="sap-icon://citizen-connect"
+       type="Accept"
+       press="onConnectPress" />
+     </Toolbar>
+    </footer>
+
+    <dependents>
+     <Dialog
+      id="errorTopicDialog"
+      visible="true"
+      title="Error"
+      showHeader="true"
+      type="Standard"
+      state="Error">
+      <content>
+       <Text text="Please provide a topic or queue name" />
+      </content>
+      <buttons>
+       <Button
+        text="OK"
+        type="Default"
+        enabled="true"
+        press="onDialogAccept" />
+      </buttons>
+     </Dialog>
+    </dependents>
+   </Page>
+  </App>
+ </Shell>
+</mvc:View>
