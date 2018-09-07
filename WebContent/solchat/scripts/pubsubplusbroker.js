@@ -1,11 +1,11 @@
 class PubSubPlusBroker {
 
-  /*
-   * Basic constructor to create an object for interacting with
-   * PubSub+.
-   *
-   * Member variables in JavaScript are declared inside constructors.
-   */
+  /**
+   * @author Ush Shukla (Solace Inc.)
+   * @since 06-09-2018
+   * @class
+   * @classdesc - Constructor to create an object for interacting with PubSub+.
+  */
   constructor() {
 
     /**INITIALIZE YOUR BROKER PARAMETERS HERE**/
@@ -43,20 +43,17 @@ class PubSubPlusBroker {
    * Note: The credentials need to be entered into the backend service
    * *beforehand*
    *
-   * @param sUsername
-   *            Username to RESTfully authenticate against the broker
-   * @param sPassword
-   *            Password associated with the username
+   * @param {string} sUsername - Username to RESTfully authenticate against the broker
+   * @param {string} sPassword - Password associated with the username
    */
   authenticate(sUsername, sPassword) {
     return true;
   }
 
   /**
-   * @param   oResultCallback
-   *          callback function to execute on function completion.
-   * @returns
-   *          Nothing
+   * @callback oResultCallback
+   * @param {oResultCallback} oResultCallback - callback function to execute on various events.
+   * @returns Nothing
    */
   connect(oResultCallback) {
 
@@ -112,19 +109,13 @@ class PubSubPlusBroker {
     }
   }
 
-
-
   /**
-   * Publishes a message to the PubSub+ broker using the Publish/subscribe
-   * paradigm.
-   * @param sBody
-   *           message body to send as a String
+   * Publishes a message to the PubSub+ broker.
+   * @callback oResultCallback
    *
-   * @param oResultCallback
-   *           Callback function used to handle the result
-   *
-   * @returns
-   *          Nothing
+   * @param {string} sBody - message body to send as a String
+   * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+   * @returns Nothing
    */
   publish(sBody, oResultCallback) {
 
@@ -161,8 +152,11 @@ class PubSubPlusBroker {
 
 
   /**
-   * @param oResultCallback
-   *           Callback function to be executed to relay subscription state
+   * Subscribes to a given topic.
+   * @callback oResultCallback
+   *
+   * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+   * @returns Nothing
    */
   subscribe(oResultCallback) {
 
@@ -212,16 +206,31 @@ class PubSubPlusBroker {
     this.broker.session.on(solace.SessionEventCode.SUBSCRIPTION_ERROR, (sessionEvent) => {
       parent.oResultCallback(false, "Could not subscribe to " + parent.topic);
     });
-  }
 
-  onTopicMessage(oResultCallback) {
-    var parent = this;
-    parent.oResultCallback = oResultCallback;
 
-    this.broker.session.on(solace.SessionEventCode.MESSAGE, (sMessage) => {
-      this.oResultCallback(sMessage.dump());
-      console.debug(sMessage.dump());
-    });
-  }
 
-} //End class
+    /**
+     * Returns the message received from a topic subscription.
+     * @callback oResultCallback
+     *
+     * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+     */
+    onTopicMessage(oResultCallback) {
+
+      //get a reference to this method as the "parent"
+      //this then gives us access to the callback method for use in the
+      //event handler below
+      var parent = this;
+      parent.oResultCallback = oResultCallback;
+
+      //register a lambda for when we receive a message.
+      this.broker.session.on(solace.SessionEventCode.MESSAGE, (sMessage) => {
+
+        //assign the message to our callback followed by output the same
+        //message to the debug log
+        this.oResultCallback(sMessage.dump());
+        console.debug(sMessage.dump());
+      });
+    }
+
+  } //End class
