@@ -13,7 +13,13 @@ class PubSubPlusBroker {
     this.sVPN = "msgvpn-34x0j4seuv";
     this.sUSERNAME = "solace-cloud-client";
     this.sPASSWORD = "2i4ll7mv1g54vu84enlfdck88o";
-    this.sChannel = "my/test/topic";
+    this.sPublishTopic = "my/test/topic/send";
+    this.sSubscribeTopic = "my/test/topic/send";
+    this.sReceiveQueue = "my.queue";
+
+    /*Topic Subscriber Parameters*/
+    this.BLOCK_SUBSCRIBER_TIMEOUT_MS = 10000;
+    this.GENERATE_SUBSCRIBE_EVENT = true;
 
     this.broker = {};
     this.broker.session = null;
@@ -41,21 +47,21 @@ class PubSubPlusBroker {
    *            Username to RESTfully authenticate against the broker
    * @param sPassword
    *            Password associated with the username
-   * @returns Boolean indicating success or failure of the authentication
    */
   authenticate(sUsername, sPassword) {
     return true;
   }
 
   /**
-   * @param
-   *          none
-   * @returns Boolean
-   *            Success of failure of the connection attempt
+   * @param   oResultCallback
+   *          callback function to execute on function completion.
+   * @returns
+   *          Nothing
    */
-  connect(callback) {
+  connect(oResultCallback) {
 
-    console.debug("Establishing session to " + this.sUSERNAME + ":" + this.sPASSWORD + "@" + this.sBROKERURL + "/" + this.sVPN);
+    var sFullURI = this.sUSERNAME + ":" + this.sPASSWORD + "@" + this.sBROKERURL + "/" + this.sVPN;
+    console.debug("Establishing session to " + sFullURI);
 
     try {
       this.broker.session = solace.SolclientFactory.createSession({
@@ -69,13 +75,37 @@ class PubSubPlusBroker {
       console.error(error.message);
     }
 
-    this.broker.session.on(solace.SessionEventCode.UP_NOTICE, callback);
+    /*
+     *Since we want to access our callback function inside our event
+     *handlers, we first assign "this" to a variable, thereby
+     *forcing it to follow regular scoping rules i.e. we can actually access it,
+     *and any related properties, inside the event handler lambda.
+     */
+    var parent = this;
+    parent.oResultCallback = oResultCallback;
+    parent.sFullURI = sFullURI;
 
-    //TODO: pass in a callback that reacts to failure
-    //this.broker.session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR,failureCallback);
+    //setup an event listener for a successful connection
+    //Pass in the callback function to execute on successs.
+    this.broker.session.on(solace.SessionEventCode.UP_NOTICE, (sessionEvent) => {
+      console.debug(sessionEvent);
+      parent.oResultCallback(true, "Connected to " + parent.sFullURI);
+    });
 
+    //setup an event listener for connection failures
+    //Pass in the callback function to execute on failure.
+    this.broker.session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (sessionEvent) => {
+      console.error(sessionEvent);
+      parent.oResultCallback(false, "Could not connect to " + parent.sFullURI + " error -> " + sessionEvent);
+    });
+
+    /*actually attempt a connection to the broker
+     *Note that we don't declare a successful connection here
+     *since the API specifically indicates that we should wait for the
+     *UP_NOTICE (above) before performing any post-connection logic.
+     */
     try {
-      console.debug("connecting to broker");
+      console.debug("connecting to broker...");
       this.broker.session.connect();
     } catch (error) {
       console.error("Could not connect to broker:" + error.message);
@@ -83,17 +113,20 @@ class PubSubPlusBroker {
   }
 
 
+
   /**
-   * Sends a message to the PubSub+ broker and returns a boolean value
-   * indicating success/failure of the send.
-   *
+   * Publishes a message to the PubSub+ broker using the Publish/subscribe
+   * paradigm.
    * @param sBody
    *           message body to send as a String
    *
    * @param oResultCallback
    *           Callback function used to handle the result
+   *
+   * @returns
+   *          Nothing
    */
-  sendMessage(sBody, oResultCallback) {
+  publish(sBody, oResultCallback) {
 
     //ensure that we have a session to play with
     if (this.broker.session === null) {
@@ -104,22 +137,91 @@ class PubSubPlusBroker {
        *establish the delivery mode. After this, we assign our text message (the "body")
        *to said object*/
       var message = solace.SolclientFactory.createMessage();
-      message.setDestination(solace.SolclientFactory.createTopicDestination(this.sChannel));
+      message.setDestination(solace.SolclientFactory.createTopicDestination(this.sPublishTopic));
       message.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
       message.setBinaryAttachment(sBody);
 
-      console.debug("Publishing message " + sBody + " to topic " + this.sChannel);
+      console.debug("Publishing message " + sBody + " to topic " + this.sPublishTopic);
 
       //attempt the actual publication of our message object
       //success or failure, issue a message stating the fact.
       try {
+        //send the actual message and log a successful send
         this.broker.session.send(message);
-        console.debug("message published");
         oResultCallback(true, "message published!");
+        console.debug("message published");
       } catch (error) {
-        oResultCallback(false, error.message);
-        console.error(error.message);
+
+        //there was an error with the send()
+        oResultCallback(false, "Could not publish message to topic. -> " + error.message);
+        console.error("Could not publish message to topic. -> " + error.message);
       }
     }
   }
-}
+
+
+  /**
+   * @param oResultCallback
+   *           Callback function to be executed to relay subscription state
+   */
+  subscribe(oResultCallback) {
+
+    //ensure that we have a session to play with
+    if (this.broker.session === null) {
+      oResultCallback(false, "No session! You're probably not connected to the broker.");
+    } else {
+      /*This block establishes our subscription.
+       *We defer actually recieving the message to the event
+       *handler designated for that purpose.
+       */
+      try {
+        /*
+         *@params:
+         *-Topic to receive on.
+         *-Should we generate an event when the subscription succeeds?
+         *-CorrelationKey that is used in events
+         *-How long to block the execution thread, in milliseconds
+         */
+        this.broker.session.subscribe(
+          solace.SolclientFactory.createTopic(this.sSubscribeTopic),
+          this.GENERATE_SUBSCRIBE_EVENT,
+          this.sSubscribeTopic,
+          this.BLOCK_SUBSCRIBER_TIMEOUT_MS
+        );
+      } catch (error) {
+        console.error("Could not subscribe to topic. ->" + error.message);
+      }
+    }
+
+    /*
+     *Rescope 'this' to be our current method, permitting access to
+     *the callback function inside our event handler lambda (below)
+     *For a more detailed explanation see the connect() method.
+     */
+    var parent = this;
+    parent.oResultCallback = oResultCallback;
+    parent.topic = this.sSubscribeTopic;
+
+    //What to do when subscription succeeds
+    this.broker.session.on(solace.SessionEventCode.SUBSCRIPTION_OK, (sessionEvent) => {
+      parent.oResultCallback(true, "Successfully subscribed to " + this.topic);
+      console.debug("Successfully subscribed to " + parent.topic);
+    });
+
+    //What to do when a sub fails
+    this.broker.session.on(solace.SessionEventCode.SUBSCRIPTION_ERROR, (sessionEvent) => {
+      parent.oResultCallback(false, "Could not subscribe to " + parent.topic);
+    });
+  }
+
+  onTopicMessage(oResultCallback) {
+    var parent = this;
+    parent.oResultCallback = oResultCallback;
+
+    this.broker.session.on(solace.SessionEventCode.MESSAGE, (sMessage) => {
+      this.oResultCallback(sMessage.dump());
+      console.debug(sMessage.dump());
+    });
+  }
+
+} //End class
