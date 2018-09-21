@@ -4,8 +4,16 @@ class PubSubPlusBroker {
    * @author Ush Shukla (Solace Inc.)
    * @since 06-09-2018
    * @class
-   * @classdesc - Constructor to create an object for interacting with PubSub+.
-  */
+   * @classdesc PubSubPlusBroker allows students to connect and interact with an instance of PubSub+.
+   *            This class is intended to supplement <b>learning exercises</b> associated with the PubSub+ platform,
+   *            and, as such, may not be the best example of how to design a general class for interacting with
+   *            PubSub+. This class offers several methods:
+   *
+   *            -Connecting to a broker.
+   *            -Authenticating against a contrived authentication service using REST (demonstrates REST Delivery Points)
+   *            -Publish & subscribe to a topic on the broker
+   *            -Connect & consume from a queue on the broker
+   */
   constructor() {
 
     /**INITIALIZE YOUR BROKER PARAMETERS HERE**/
@@ -15,14 +23,16 @@ class PubSubPlusBroker {
     this.sPASSWORD = "2i4ll7mv1g54vu84enlfdck88o";
     this.sPublishTopic = "my/test/topic/send";
     this.sSubscribeTopic = "my/test/topic/send";
-    this.sReceiveQueue = "my.queue";
+    this.sReceiveQueue = "myqueue";
 
     /*Topic Subscriber Parameters*/
     this.BLOCK_SUBSCRIBER_TIMEOUT_MS = 10000;
     this.GENERATE_SUBSCRIBE_EVENT = true;
 
+    /*Our various connection objects*/
     this.broker = {};
-    this.broker.session = null;
+    this.broker.session = {};
+    this.messageConsumer = {};
     /******************************************/
 
     //standard init
@@ -34,10 +44,12 @@ class PubSubPlusBroker {
     solace.SolclientFactory.setLogLevel(solace.LogLevel.DEBUG);
   }
 
+  
+
   /**
    * * Uses a Solace PubSub+ topic to authenticate against a backend RESTful
    * service. This method demonstrates the RDP (REST Delivery Point) feature
-   * of PubSub+, which lets a RESTful service be exposed across PubSub+ in a
+   * of PubSub+, which lets an HTTP service be exposed across PubSub+ in a
    * publish/subscribe manner.
    *
    * Note: The credentials need to be entered into the backend service
@@ -51,12 +63,15 @@ class PubSubPlusBroker {
   }
 
   /**
+   * Connects to a PubSub+ broker instance.
+   *
    * @callback oResultCallback
-   * @param {oResultCallback} oResultCallback - callback function to execute on various events.
+   * @param {oResultCallback} oResultCallback - callback function to execute on success or failure events.
    * @returns Nothing
    */
   connect(oResultCallback) {
 
+    //build the full URI to the broker. Makes for a more informational alert/debug message.
     var sFullURI = this.sUSERNAME + ":" + this.sPASSWORD + "@" + this.sBROKERURL + "/" + this.sVPN;
     console.debug("Establishing session to " + sFullURI);
 
@@ -74,26 +89,25 @@ class PubSubPlusBroker {
 
     /*
      *Since we want to access our callback function inside our event
-     *handlers, we first assign "this" to a variable, thereby
-     *forcing it to follow regular scoping rules i.e. we can actually access it,
-     *and any related properties, inside the event handler lambda.
+     *handlers, we reassign it, thereby
+     *forcing it to follow regular scoping rules
+     *i.e. we can actually access it, inside the event handler lambda.
      */
-    var parent = this;
-    parent.oResultCallback = oResultCallback;
-    parent.sFullURI = sFullURI;
+    var oResultCallback = oResultCallback;
+    var sFullURI = sFullURI;
 
     //setup an event listener for a successful connection
-    //Pass in the callback function to execute on successs.
     this.broker.session.on(solace.SessionEventCode.UP_NOTICE, (sessionEvent) => {
+      //notify the user via a debug message & an on-screen alert that
+      //our connection succeeded.
       console.debug(sessionEvent);
-      parent.oResultCallback(true, "Connected to " + parent.sFullURI);
+      oResultCallback(true, "Connected to " + sFullURI);
     });
 
     //setup an event listener for connection failures
-    //Pass in the callback function to execute on failure.
     this.broker.session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (sessionEvent) => {
       console.error(sessionEvent);
-      parent.oResultCallback(false, "Could not connect to " + parent.sFullURI + " error -> " + sessionEvent);
+      oResultCallback(false, "Could not connect to " + sFullURI + " error -> " + sessionEvent);
     });
 
     /*actually attempt a connection to the broker
@@ -105,12 +119,19 @@ class PubSubPlusBroker {
       console.debug("connecting to broker...");
       this.broker.session.connect();
     } catch (error) {
+
+      /*catch any other errors/exceptions that we did not account for with
+       *relevant event handlers. For the sake of user-experience, we don't
+       *want to dump these unexpected messages to the UI.
+       */
       console.error("Could not connect to broker:" + error.message);
     }
   }
 
+
   /**
-   * Publishes a message to the PubSub+ broker.
+   * Publishes a message to the broker on a predefined topic.
+   *
    * @callback oResultCallback
    *
    * @param {string} sBody - message body to send as a String
@@ -134,8 +155,9 @@ class PubSubPlusBroker {
 
       console.debug("Publishing message " + sBody + " to topic " + this.sPublishTopic);
 
-      //attempt the actual publication of our message object
-      //success or failure, issue a message stating the fact.
+      /*attempt the actual publication of our message object
+       *success or failure, issue a message stating the fact.
+       */
       try {
         //send the actual message and log a successful send
         this.broker.session.send(message);
@@ -152,7 +174,7 @@ class PubSubPlusBroker {
 
 
   /**
-   * Subscribes to a given topic.
+   * Subscribes to a given topic on the broker.
    * @callback oResultCallback
    *
    * @param {oResultCallback} oResultCallback - Callback function used to handle the result
@@ -188,49 +210,129 @@ class PubSubPlusBroker {
     }
 
     /*
-     *Rescope 'this' to be our current method, permitting access to
-     *the callback function inside our event handler lambda (below)
-     *For a more detailed explanation see the connect() method.
+     *Rescope our callback and topic so we can use them
+     *inside our event handler lambda, below.
      */
-    var parent = this;
-    parent.oResultCallback = oResultCallback;
-    parent.topic = this.sSubscribeTopic;
+    var oResultCallback = oResultCallback;
+    var sTopic = this.sSubscribeTopic;
 
     //What to do when subscription succeeds
     this.broker.session.on(solace.SessionEventCode.SUBSCRIPTION_OK, (sessionEvent) => {
-      parent.oResultCallback(true, "Successfully subscribed to " + this.topic);
-      console.debug("Successfully subscribed to " + parent.topic);
+      oResultCallback(true, "Successfully subscribed to " + sTopic);
+      console.debug("Successfully subscribed to " + sTopic);
     });
 
     //What to do when a sub fails
     this.broker.session.on(solace.SessionEventCode.SUBSCRIPTION_ERROR, (sessionEvent) => {
-      parent.oResultCallback(false, "Could not subscribe to " + parent.topic);
+      oResultCallback(false, "Could not subscribe to " + sTopic);
     });
+  }
 
 
+  /**
+   * Consumes from a given queue on the broker
+   * @callback oResultCallback
+   *
+   * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+   * @returns Nothing
+   */
+  consume(oResultCallback) {
 
-    /**
-     * Returns the message received from a topic subscription.
-     * @callback oResultCallback
-     *
-     * @param {oResultCallback} oResultCallback - Callback function used to handle the result
-     */
-    onTopicMessage(oResultCallback) {
+    //ensure that we have a session to play with
+    if (this.broker.session === null) {
+      oResultCallback(false, "No session! You're probably not connected to the broker.");
+    } else {
 
-      //get a reference to this method as the "parent"
-      //this then gives us access to the callback method for use in the
-      //event handler below
-      var parent = this;
-      parent.oResultCallback = oResultCallback;
+      /*This block establishes our consumer.
+       *We defer actually recieving the message to the event
+       *handler designated for that purpose.
+       */
+      this.messageConsumer = this.broker.session.createMessageConsumer({
+        // solace.MessageConsumerProperties
+        queueDescriptor: {
+          name: this.sReceiveQueue,
+          type: solace.QueueType.QUEUE
+        },
 
-      //register a lambda for when we receive a message.
-      this.broker.session.on(solace.SessionEventCode.MESSAGE, (sMessage) => {
-
-        //assign the message to our callback followed by output the same
-        //message to the debug log
-        this.oResultCallback(sMessage.dump());
-        console.debug(sMessage.dump());
+        //enable auto-acknowledgement so that messages are read off the queue immediately
+        acknowledgeMode: solace.MessageConsumerAcknowledgeMode.AUTO,
       });
+      try {
+        this.messageConsumer.connect()
+      } catch (error) {
+        console.error("Could not connect to queue. ->" + error.message);
+      }
     }
 
-  } //End class
+    /*
+     *Rescope our callback and topic so we can use them
+     *inside our event handler lambda, below.
+     */
+    var oResultCallback = oResultCallback;
+    var sQueue = this.sReceiveQueue;
+
+    //What to do when subscription succeeds
+    this.messageConsumer.on(solace.MessageConsumerEventName.UP, () => {
+      oResultCallback(true, "Successfully connected to " + sQueue);
+      console.debug("Successfully connected to " + sQueue);
+    });
+
+    //What to do when a sub fails
+    this.messageConsumer.on(solace.MessageConsumerEventName.CONNECT_FAILED_ERROR, () => {
+      oResultCallback(false, "Could not subscribe to " + sQueue);
+      console.debug("Failed to connect to " + sQueue);
+    });
+  }
+
+
+  /**
+   * Returns the message received from a topic subscription.
+   * @callback oResultCallback
+   *
+   * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+   */
+  onTopicMessage(oResultCallback) {
+
+    /*
+     *Rescope our callback so we can use it
+     *inside our event handler lambda, below.
+     */
+    var oResultCallback = oResultCallback;
+
+    //register a lambda for when we receive a message.
+    this.broker.session.on(solace.SessionEventCode.MESSAGE, (sMessage) => {
+
+      //assign the message to our callback for use by the caller.
+      //We dump a more detailed format of the message to the debug log
+      oResultCallback(sMessage.getBinaryAttachment());
+      console.debug(sMessage.dump());
+    });
+  }
+
+
+  /**
+   * Consumes messages from a queue and returns them to the caller using
+   * the provided callback function.
+   *
+   * @callback oResultCallback
+   *
+   * @param {oResultCallback} oResultCallback - Callback function used to handle the result
+   */
+  onQueueMessage(oResultCallback) {
+
+    //rescope our callback for use in the lambda
+    var oResultCallback = oResultCallback;
+
+    console.debug(this.messageConsumer);
+
+    //register a lambda for when we receive a message.
+    this.messageConsumer.on(solace.MessageConsumerEventName.MESSAGE, (sMessage) => {
+
+      //assign the message to our callback for use by the caller.
+      //We dump a more detailed format of the message to the debug log
+      oResultCallback(sMessage.getBinaryAttachment());
+      console.debug(sMessage.dump());
+    });
+  }
+
+} //End class
